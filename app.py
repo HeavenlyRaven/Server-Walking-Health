@@ -1,7 +1,6 @@
-from flask import Flask, Response, request, jsonify
-from http import HTTPStatus
+from flask import Flask, Response, request
 
-from db_tools import get_connection as getcon
+from utils.db_tools import get_connection as getcon
 
 app = Flask(__name__)
 
@@ -33,7 +32,7 @@ def get_data():
         try:
             user_data = dict(user)
         except TypeError:
-            return Response("Queried user not found", status=HTTPStatus.NOT_FOUND)
+            return {"code": 404, "message": "Queried user not found"}
         else:
             if user_data["isDoctor"]:
                 user_data.update({"patients": []})
@@ -41,13 +40,13 @@ def get_data():
                 for patient in cur.fetchall():
                     user_data["patients"].append(dict(patient))
             else:
-                cur.execute(f"SELECT doctorId FROM patients WHERE id={user_id}")
-                user_data.update(dict(cur.fetchone()))
-            return jsonify(user_data)
+                cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p WHERE u.id==p.doctorId AND p.id=={user_id}")
+                user_data.update({"doctor": dict(cur.fetchone())})
+            return {"code": 200, "message": "Queried user found successfully", "result": user_data}
         finally:
             con.close()
     else:
-        return Response("Incorrect request", status=HTTPStatus.BAD_REQUEST)
+        return {"code": 400, "message": "Incorrect request"}
 
 
 @app.get('/medical/getDoctors')
