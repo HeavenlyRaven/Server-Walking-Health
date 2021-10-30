@@ -36,11 +36,11 @@ def get_data():
         else:
             if user_data["isDoctor"]:
                 user_data.update({"patients": []})
-                cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p WHERE p.id==u.id AND p.doctorId=={user_id}")
+                cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p ON p.id==u.id WHERE p.doctorId=={user_id}")
                 for patient in cur.fetchall():
                     user_data["patients"].append(dict(patient))
             else:
-                cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p WHERE u.id==p.doctorId AND p.id=={user_id}")
+                cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p ON u.id==p.doctorId WHERE p.id=={user_id}")
                 user_data.update({"doctor": dict(cur.fetchone())})
             return {"code": 200, "message": "Queried user found successfully", "result": user_data}
         finally:
