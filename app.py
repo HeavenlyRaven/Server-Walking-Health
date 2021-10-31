@@ -18,8 +18,28 @@ def register():
 
 
 @app.post('/user/login')
-def login():
-    return Response()
+def log_in():
+    data = request.json
+    try:
+        login = data["login"]
+        password = data["password"]
+    except (TypeError, KeyError):
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        con = getcon()
+        cur = con.cursor()
+        cur.execute(f"SELECT password FROM users WHERE login=='{login}'")
+        try:
+            actual_password = cur.fetchone()["password"]
+        except TypeError:
+            return {"code": 404, "message": "There is no user with such login"}
+        else:
+            if password == actual_password:
+                return {"code": 200, "message": "Success", "result": AUTH_TOKEN}
+            else:
+                return {"code": 403, "message": "Incorrect password"}
+        finally:
+            con.close()
 
 
 @app.get('/user/getData')
