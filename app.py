@@ -1,6 +1,6 @@
 from flask import Flask, Response, request
 
-from utils.db_tools import get_connection as getcon
+from utils.db_tools import IntegrityError, get_connection as getcon
 
 AUTH_TOKEN = "25fg63278gf3bxzg6fs"
 
@@ -14,7 +14,27 @@ def index():
 
 @app.post('/user/register')
 def register():
-    return Response()
+    data = request.json
+    try:
+        login = data["login"]
+        password = data["password"]
+        fullname = data["fullname"]
+        doctor_login = data["doctorLogin"]
+    except (TypeError, KeyError):
+        return {"code": 400, "message": "Incorrect request", "isDoctor": None, "result": None}
+    else:
+        con = getcon()
+        cur = con.cursor()
+        try:
+            cur.execute(f"INSERT INTO users VALUES (?, ?, ?, ?)", (login, password, fullname, doctor_login))
+        except IntegrityError:
+            return {"code": 403, "message": "User already exists", "isDoctor": None, "result": None}
+        else:
+            con.commit()
+            return {"code": 200, "message": "User successfully registered",
+                    "isDoctor": True if doctor_login is None else False, "result": AUTH_TOKEN}
+        finally:
+            con.close()
 
 
 @app.post('/user/login')

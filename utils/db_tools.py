@@ -1,6 +1,7 @@
 import sqlite3
 
 database_name = "database.db"
+IntegrityError = sqlite3.IntegrityError
 
 
 def get_connection():
