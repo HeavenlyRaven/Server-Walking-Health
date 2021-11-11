@@ -78,7 +78,7 @@ def get_data():
 def get_doctors():
     con = getcon()
     cur = con.cursor()
-    cur.execute("SELECT login, fullname FROM users WHERE isDoctor")
+    cur.execute("SELECT login, fullname FROM users WHERE doctorLogin IS NULL")
     doctors = list(map(dict, cur.fetchall()))
     con.close()
     return {"code": 200, "message": "OK", "result": doctors}
