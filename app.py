@@ -24,20 +24,22 @@ def log_in():
         login = data["login"]
         password = data["password"]
     except (TypeError, KeyError):
-        return {"code": 400, "message": "Incorrect request"}
+        return {"code": 400, "message": "Incorrect request", "isDoctor": None, "result": None}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT password FROM users WHERE login=='{login}'")
+        cur.execute(f"SELECT password, doctorLogin FROM users WHERE login=='{login}'")
+        fetched_data = cur.fetchone()
         try:
-            actual_password = cur.fetchone()["password"]
+            actual_password = fetched_data["password"]
         except TypeError:
-            return {"code": 404, "message": "There is no user with such login"}
+            return {"code": 404, "message": "There is no user with such login", "isDoctor": None, "result": None}
         else:
+            is_doctor = True if fetched_data["doctorLogin"] is None else False
             if password == actual_password:
-                return {"code": 200, "message": "Success", "result": AUTH_TOKEN}
+                return {"code": 200, "message": "Success", "isDoctor": is_doctor, "result": AUTH_TOKEN}
             else:
-                return {"code": 403, "message": "Incorrect password"}
+                return {"code": 403, "message": "Incorrect password", "isDoctor": is_doctor, "result": None}
         finally:
             con.close()
 
