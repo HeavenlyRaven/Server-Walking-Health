@@ -1,8 +1,9 @@
 from flask import Flask, Response, request
 
 from utils.db_tools import IntegrityError, get_connection as getcon
+from utils.security_tools import get_auth_token
 
-AUTH_TOKEN = "25fg63278gf3bxzg6fs"
+AUTH_TOKEN = get_auth_token()
 
 app = Flask(__name__)
 
