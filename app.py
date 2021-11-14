@@ -49,7 +49,7 @@ def log_in():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT password, doctorLogin FROM users WHERE login=='{login}'")
+        cur.execute(f"SELECT password, doctorLogin FROM users WHERE login='{login}'")
         fetched_data = cur.fetchone()
         try:
             actual_password = fetched_data["password"]
@@ -68,25 +68,49 @@ def log_in():
 @app.get('/user/getData')
 def get_data():
     head = request.headers
-    if "UserId" in head and "AuthToken" in head:
+    args = request.args
+    if "CurrentUserLogin" in head and "AuthToken" in head and "login" in args:
         if head["AuthToken"] == AUTH_TOKEN:
-            user_id = head["UserId"]
+            current_user_login = head["CurrentUserLogin"]
+            login = args["login"]
             con = getcon()
             cur = con.cursor()
-            cur.execute(f"SELECT login, fullname, isDoctor FROM users WHERE id=={user_id}")
-            user = cur.fetchone()
+            cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{current_user_login}'")
+            current_user = cur.fetchone()
             try:
-                user_data = dict(user)
+                current_user_fullname = current_user["fullname"]
             except TypeError:
-                return {"code": 404, "message": "Queried user not found"}
+                return {"code": 404, "message": "Current user not found"}
             else:
-                if user_data["isDoctor"]:
-                    cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p ON p.id==u.id WHERE p.doctorId=={user_id}")
-                    user_data.update({"patients": list(map(dict, cur.fetchall()))})
+                if current_user_login == login:
+                    result = {"login": current_user_login,
+                              "fullname": current_user_fullname,
+                              "doctor": None,
+                              "patients": []}
+                    user_doctor_login = current_user["doctorLogin"]
+                    if user_doctor_login is None:
+                        result["isDoctor"] = True
+                        cur.execute(f"SELECT login, fullname FROM users WHERE doctorLogin='{current_user_login}'")
+                        result["patients"] = list(map(dict, cur.fetchall()))
+                    else:
+                        result["isDoctor"] = False
+                        cur.execute(f"SELECT login, fullname FROM users WHERE login='{user_doctor_login}'")
+                        result["doctor"] = dict(cur.fetchone())
+                    return {"code": 200, "message": "Success", "result": result}
                 else:
-                    cur.execute(f"SELECT login, fullname FROM users AS u INNER JOIN patients AS p ON u.id==p.doctorId WHERE p.id=={user_id}")
-                    user_data.update({"doctor": dict(cur.fetchone())})
-                return {"code": 200, "message": "Queried user found successfully", "result": user_data}
+                    cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{login}'")
+                    user = cur.fetchone()
+                    if user is None:
+                        return {"code": 404, "message": "Queried user not found"}
+                    elif current_user_login == user["doctorLogin"]:
+                        result = {"login": login,
+                                  "fullname": user["fullname"],
+                                  "isDoctor": False,
+                                  "doctor": {"login": current_user_login, "fullname": current_user_fullname},
+                                  "patients": []}
+                        return {"code": 200, "message": "Success", "result": result}
+                    else:
+                        return {"code": 403, "message": "Current user has no access to the queried user"}
             finally:
                 con.close()
         else:

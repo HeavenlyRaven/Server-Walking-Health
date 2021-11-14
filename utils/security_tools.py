@@ -1,6 +1,9 @@
+from os import path
+
+
 def get_auth_token():
 
-    with open("AUTH_TOKEN.txt", 'r') as token_file:
+    with open(path.join(path.dirname(__file__), "AUTH_TOKEN.txt"), 'r') as token_file:
         token = token_file.read()
 
     return token
