@@ -1,4 +1,5 @@
 from flask import Flask, Response, request
+from time import time
 
 from utils.db_tools import IntegrityError, get_connection as getcon
 from utils.security_tools import get_auth_token
@@ -27,7 +28,8 @@ def register():
         con = getcon()
         cur = con.cursor()
         try:
-            cur.execute(f"INSERT INTO users VALUES (?, ?, ?, ?)", (login, password, fullname, doctor_login))
+            cur.execute(f"INSERT INTO users (login, password, fullname, doctorLogin) VALUES (?, ?, ?, ?)",
+                        (login, password, fullname, doctor_login))
         except IntegrityError:
             return {"code": 403, "message": "User already exists", "isDoctor": None, "result": None}
         else:
@@ -136,4 +138,43 @@ def get_messages():
 
 @app.post('/medical/sendMessage')
 def send_message():
-    return Response()
+    head = request.headers
+    body = request.json
+    if "CurrentUserLogin" in head and "AuthToken" in head and "PatientLogin" in body and "message" in body:
+        if head["AuthToken"] == AUTH_TOKEN:
+            current_user_login = head["CurrentUserLogin"]
+            patient_login = body["PatientLogin"]
+            message = body["message"]
+            con = getcon()
+            cur = con.cursor()
+            cur.execute(f"SELECT doctorLogin FROM users WHERE login='{current_user_login}'")
+            try:
+                current_user_doctor_login = cur.fetchone()["doctorLogin"]
+            except TypeError:
+                return {"code": 404, "message": "Current user not found"}
+            else:
+                if current_user_doctor_login is None:
+                    cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
+                    try:
+                        patient_doctor_login = cur.fetchone()["doctorLogin"]
+                    except TypeError:
+                        return {"code": 404, "message": "Queried user not found"}
+                    else:
+                        if patient_doctor_login == current_user_login:
+                            timestamp = int(time())
+                            cur.execute(f"INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
+                                        (current_user_login, patient_login, message, timestamp))
+                            con.commit()
+                            return {"code": 200, "message": "Success", "result": {"login": patient_login,
+                                                                                  "message": message,
+                                                                                  "timestamp": timestamp}}
+                        else:
+                            return {"code": 403, "message": "Current user has no access to the queried user"}
+                else:
+                    return {"code": 403, "message": "Current user is not a doctor"}
+            finally:
+                con.close()
+        else:
+            return {"code": 403, "message": "Wrong AuthToken"}
+    else:
+        return {"code": 400, "message": "Incorrect request"}
