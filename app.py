@@ -133,7 +133,23 @@ def get_doctors():
 
 @app.get('/medical/getMessages')
 def get_messages():
-    return Response()
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+        patient_login = request.args["PatientLogin"]
+    except KeyError:
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
+            con = getcon()
+            cur = con.cursor()
+            cur.execute(f"""SELECT patientLogin as login, message, timestamp FROM messages
+                            WHERE doctorLogin='{current_user_login}' AND patientLogin='{patient_login}'""")
+            messages = list(map(dict, cur.fetchall()))
+            con.close()
+            return {"code": 200, "message": "Success", "result": messages}
+        else:
+            return {"code": 403, "message": "Wrong AuthToken"}
 
 
 @app.post('/medical/sendMessage')
