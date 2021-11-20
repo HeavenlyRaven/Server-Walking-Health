@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, request
 from time import time
 
 from utils.db_tools import IntegrityError, get_connection as getcon
@@ -23,19 +23,20 @@ def register():
         fullname = data["fullname"]
         doctor_login = data["doctorLogin"]
     except (TypeError, KeyError):
-        return {"code": 400, "message": "Incorrect request", "isDoctor": None, "result": None}
+        return {"code": 400, "message": "Incorrect request", "result": {"isDoctor": None, "AuthToken": None}}
     else:
+        is_doctor = True if doctor_login is None else False
         con = getcon()
         cur = con.cursor()
         try:
-            cur.execute(f"INSERT INTO users (login, password, fullname, doctorLogin) VALUES (?, ?, ?, ?)",
+            cur.execute("INSERT INTO users (login, password, fullname, doctorLogin) VALUES (?, ?, ?, ?)",
                         (login, password, fullname, doctor_login))
         except IntegrityError:
-            return {"code": 403, "message": "User already exists", "isDoctor": None, "result": None}
+            return {"code": 403, "message": "User already exists", "result": {"isDoctor": is_doctor, "AuthToken": None}}
         else:
             con.commit()
             return {"code": 200, "message": "User successfully registered",
-                    "isDoctor": True if doctor_login is None else False, "result": AUTH_TOKEN}
+                    "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN}}
         finally:
             con.close()
 
@@ -47,7 +48,7 @@ def log_in():
         login = data["login"]
         password = data["password"]
     except (TypeError, KeyError):
-        return {"code": 400, "message": "Incorrect request", "isDoctor": None, "result": None}
+        return {"code": 400, "message": "Incorrect request", "result": {"isDoctor": None, "AuthToken": None}}
     else:
         con = getcon()
         cur = con.cursor()
@@ -56,13 +57,13 @@ def log_in():
         try:
             actual_password = fetched_data["password"]
         except TypeError:
-            return {"code": 404, "message": "There is no user with such login", "isDoctor": None, "result": None}
+            return {"code": 404, "message": "There is no user with such login", "result": {"isDoctor": None, "AuthToken": None}}
         else:
             is_doctor = True if fetched_data["doctorLogin"] is None else False
             if password == actual_password:
-                return {"code": 200, "message": "Success", "isDoctor": is_doctor, "result": AUTH_TOKEN}
+                return {"code": 200, "message": "Success", "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN}}
             else:
-                return {"code": 403, "message": "Incorrect password", "isDoctor": is_doctor, "result": None}
+                return {"code": 403, "message": "Incorrect password", "result": {"isDoctor": is_doctor, "AuthToken": None}}
         finally:
             con.close()
 
@@ -178,7 +179,7 @@ def send_message():
                     else:
                         if patient_doctor_login == current_user_login:
                             timestamp = int(time())
-                            cur.execute(f"INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
+                            cur.execute("INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
                                         (current_user_login, patient_login, message, timestamp))
                             con.commit()
                             return {"code": 200, "message": "Success", "result": {"login": patient_login,
