@@ -16,7 +16,7 @@ def index():
 
 
 @app.route('/user/register', methods=['POST', 'OPTIONS'])
-@preflight_request_handler('POST')
+@preflight_request_handler
 def register():
     data = request.json
     try:
@@ -44,7 +44,7 @@ def register():
 
 
 @app.route('/user/login', methods=['POST', 'OPTIONS'])
-@preflight_request_handler('POST')
+@preflight_request_handler
 def log_in():
     data = request.json
     try:
@@ -73,7 +73,7 @@ def log_in():
 
 
 @app.route('/user/getData', methods=['GET', 'OPTIONS'])
-@preflight_request_handler('GET')
+@preflight_request_handler
 def get_data():
     head = request.headers
     args = request.args
@@ -128,7 +128,7 @@ def get_data():
 
 
 @app.route('/medical/getDoctors', methods=['GET', 'OPTIONS'])
-@preflight_request_handler('GET')
+@preflight_request_handler
 def get_doctors():
     con = getcon()
     cur = con.cursor()
@@ -139,7 +139,7 @@ def get_doctors():
 
 
 @app.route('/medical/getMessages', methods=['GET', 'OPTIONS'])
-@preflight_request_handler('GET')
+@preflight_request_handler
 def get_messages():
     try:
         current_user_login = request.headers["CurrentUserLogin"]
@@ -165,7 +165,7 @@ def get_messages():
 
 
 @app.route('/medical/sendMessage', methods=['POST', 'OPTIONS'])
-@preflight_request_handler('POST')
+@preflight_request_handler
 def send_message():
     head = request.headers
     body = request.json
