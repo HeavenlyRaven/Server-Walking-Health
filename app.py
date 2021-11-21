@@ -149,8 +149,12 @@ def get_messages():
         if auth_token == AUTH_TOKEN:
             con = getcon()
             cur = con.cursor()
-            cur.execute(f"""SELECT patientLogin as login, message, timestamp FROM messages
-                            WHERE doctorLogin='{current_user_login}' AND patientLogin='{patient_login}'""")
+            if current_user_login != patient_login:
+                cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
+                if current_user_login != cur.fetchone()["doctorLogin"]:
+                    con.close()
+                    return response({"code": 403, "message": "Current user has no access to the queried user"})
+            cur.execute(f"SELECT doctorLogin as login, message, timestamp FROM messages WHERE patientLogin='{patient_login}'")
             messages = list(map(dict, cur.fetchall()))
             con.close()
             return response({"code": 200, "message": "Success", "result": messages})
