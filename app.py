@@ -24,21 +24,24 @@ def register():
         password = data["password"]
         fullname = data["fullname"]
         doctor_login = data["doctorLogin"]
+        step_length = data["stepLength"]
     except (TypeError, KeyError):
-        return {"code": 400, "message": "Incorrect request", "result": {"isDoctor": None, "AuthToken": None}}
+        return {"code": 400, "message": "Incorrect request",
+                "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
     else:
         is_doctor = True if doctor_login is None else False
         con = getcon()
         cur = con.cursor()
         try:
-            cur.execute("INSERT INTO users (login, password, fullname, doctorLogin) VALUES (?, ?, ?, ?)",
-                        (login, password, fullname, doctor_login))
+            cur.execute("INSERT INTO users (login, password, fullname, doctorLogin, stepLength) VALUES (?, ?, ?, ?, ?)",
+                        (login, password, fullname, doctor_login, step_length))
         except IntegrityError:
-            return {"code": 403, "message": "User already exists", "result": {"isDoctor": is_doctor, "AuthToken": None}}
+            return {"code": 403, "message": "User already exists",
+                    "result": {"isDoctor": is_doctor, "AuthToken": None, "stepLength": step_length}}
         else:
             con.commit()
             return {"code": 200, "message": "User successfully registered",
-                    "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN}}
+                    "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN, "stepLength": step_length}}
         finally:
             con.close()
 
@@ -55,19 +58,21 @@ def log_in():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT password, doctorLogin FROM users WHERE login='{login}'")
+        cur.execute(f"SELECT password, doctorLogin, stepLength FROM users WHERE login='{login}'")
         fetched_data = cur.fetchone()
         try:
             actual_password = fetched_data["password"]
         except TypeError:
             return {"code": 404, "message": "There is no user with such login",
-                    "result": {"isDoctor": None, "AuthToken": None}}
+                    "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
         else:
             is_doctor = True if fetched_data["doctorLogin"] is None else False
             if password == actual_password:
-                return {"code": 200, "message": "Success", "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN}}
+                return {"code": 200, "message": "Success",
+                        "result": {"isDoctor": is_doctor, "AuthToken": AUTH_TOKEN, "stepLength": fetched_data["stepLength"]}}
             else:
-                return {"code": 403, "message": "Incorrect password", "result": {"isDoctor": is_doctor, "AuthToken": None}}
+                return {"code": 403, "message": "Incorrect password",
+                        "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
         finally:
             con.close()
 
@@ -83,7 +88,7 @@ def get_data():
             login = args["login"]
             con = getcon()
             cur = con.cursor()
-            cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{current_user_login}'")
+            cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{current_user_login}'")
             current_user = cur.fetchone()
             try:
                 current_user_fullname = current_user["fullname"]
@@ -92,9 +97,7 @@ def get_data():
             else:
                 if current_user_login == login:
                     result = {"login": current_user_login,
-                              "fullname": current_user_fullname,
-                              "doctor": None,
-                              "patients": []}
+                              "fullname": current_user_fullname}
                     user_doctor_login = current_user["doctorLogin"]
                     if user_doctor_login is None:
                         result["isDoctor"] = True
@@ -104,9 +107,10 @@ def get_data():
                         result["isDoctor"] = False
                         cur.execute(f"SELECT login, fullname FROM users WHERE login='{user_doctor_login}'")
                         result["doctor"] = dict(cur.fetchone())
+                        result["stepLength"] = current_user["stepLength"]
                     return {"code": 200, "message": "Success", "result": result}
                 else:
-                    cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{login}'")
+                    cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{login}'")
                     user = cur.fetchone()
                     if user is None:
                         return {"code": 404, "message": "Queried user not found"}
@@ -115,7 +119,7 @@ def get_data():
                                   "fullname": user["fullname"],
                                   "isDoctor": False,
                                   "doctor": {"login": current_user_login, "fullname": current_user_fullname},
-                                  "patients": []}
+                                  "stepLength": user["stepLength"]}
                         return {"code": 200, "message": "Success", "result": result}
                     else:
                         return {"code": 403, "message": "Current user has no access to the queried user"}
