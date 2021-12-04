@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, json
 from time import time
 
 from utils.db_tools import IntegrityError, get_connection as getcon
@@ -94,12 +94,12 @@ def get_user_data():
             user = cur.fetchone()
             try:
                 user_fullname = user["fullname"]
+                user_doctor_login = user["doctorLogin"]
             except TypeError:
                 return {"code": 404, "message": "Queried user not found"}
             else:
-                if current_user_login == login:
+                if current_user_login in (login, user_doctor_login):
                     result = {"login": login, "fullname": user_fullname}
-                    user_doctor_login = user["doctorLogin"]
                     if user_doctor_login is None:
                         result["isDoctor"] = True
                         cur.execute(f"SELECT login, fullname FROM users WHERE doctorLogin='{login}'")
@@ -109,14 +109,6 @@ def get_user_data():
                         cur.execute(f"SELECT login, fullname FROM users WHERE login='{user_doctor_login}'")
                         result["doctor"] = dict(cur.fetchone())
                         result["stepLength"] = user["stepLength"]
-                    return {"code": 200, "message": "Success", "result": result}
-                elif current_user_login == user["doctorLogin"]:
-                    cur.execute(f"SELECT fullname FROM users WHERE login='{current_user_login}'")
-                    result = {"login": login,
-                              "fullname": user["fullname"],
-                              "isDoctor": False,
-                              "doctor": {"login": current_user_login, "fullname": cur.fetchone()["fullname"]},
-                              "stepLength": user["stepLength"]}
                     return {"code": 200, "message": "Success", "result": result}
                 else:
                     return {"code": 403, "message": "Current user has no access to the queried user"}
@@ -151,17 +143,24 @@ def get_messages():
             con = getcon()
             cur = con.cursor()
             cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
-            patient_doctor_login = cur.fetchone()["doctorLogin"]
-            cur.execute(f"SELECT fullname FROM users WHERE login='{patient_doctor_login}'")
-            doctor_fullname = cur.fetchone()["fullname"]
-            if current_user_login != patient_login:
-                if current_user_login != patient_doctor_login:
-                    con.close()
-                    return {"code": 403, "message": "Current user has no access to the queried user"}
-            cur.execute(f"SELECT doctorLogin as login, message, timestamp FROM messages WHERE patientLogin='{patient_login}'")
-            messages = list(map(dict, cur.fetchall()))
-            con.close()
-            return {"code": 200, "message": "Success", "result": {"doctorFullname": doctor_fullname, "messages": messages}}
+            try:
+                patient_doctor_login = cur.fetchone()["doctorLogin"]
+            except TypeError:
+                return {"code": 404, "message": "Queried user not found"}
+            else:
+                if patient_doctor_login is None:
+                    return {"code": 403, "message": "Queried user is not a patient"}
+                else:
+                    cur.execute(f"SELECT fullname FROM users WHERE login='{patient_doctor_login}'")
+                    doctor_fullname = cur.fetchone()["fullname"]
+                    if current_user_login != patient_login:
+                        if current_user_login != patient_doctor_login:
+                            return {"code": 403, "message": "Current user has no access to the queried user"}
+                    cur.execute(f"SELECT doctorLogin as login, message, timestamp FROM messages WHERE patientLogin='{patient_login}'")
+                    messages = list(map(dict, cur.fetchall()))
+                    return {"code": 200, "message": "Success", "result": {"doctorFullname": doctor_fullname, "messages": messages}}
+            finally:
+                con.close()
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
 
@@ -174,7 +173,7 @@ def send_message():
         auth_token = request.headers["AuthToken"]
         patient_login = request.json["login"]
         message = request.json["message"]
-    except KeyError:
+    except (KeyError, TypeError):
         return {"code": 400, "message": "Incorrect request"}
     else:
         if auth_token == AUTH_TOKEN:
@@ -211,3 +210,36 @@ def send_message():
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
 
+
+@app.route('/medical/getData', methods=['POST', 'OPTIONS'])
+@preflight_request_handler
+def get_medical_data():
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+        patient_login = request.args["PatientLogin"]
+        date = request.args["date"]
+    except KeyError:
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
+            con = getcon()
+            cur = con.cursor()
+            cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{patient_login}'")
+            patient = cur.fetchone()
+            try:
+                patient_fullname = patient["fullname"]
+                patient_doctor_login = patient["doctorLogin"]
+            except TypeError:
+                return {"code": 404, "message": "Queried user not found"}
+            else:
+                if current_user_login in (patient_login, patient_doctor_login):
+                    cur.execute(f"SELECT data FROM data WHERE date='{date}' AND login='{patient_login}'")
+                    return {"code": 200, "message": "Success",
+                            "result": {"patientFullname": patient_fullname, "date": date, "data": json.loads(cur.fetchone()["data"])}}
+                else:
+                    return {"code": 403, "message": "Current user has no access to the queried user"}
+            finally:
+                con.close()
+        else:
+            return {"code": 403, "message": "Wrong AuthToken"}
