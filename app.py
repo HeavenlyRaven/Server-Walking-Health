@@ -79,56 +79,51 @@ def log_in():
 
 @app.route('/user/getData', methods=['GET', 'OPTIONS'])
 @preflight_request_handler
-def get_data():
-    head = request.headers
-    args = request.args
-    if "CurrentUserLogin" in head and "AuthToken" in head and "login" in args:
-        if head["AuthToken"] == AUTH_TOKEN:
-            current_user_login = head["CurrentUserLogin"]
-            login = args["login"]
+def get_user_data():
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+        login = request.args["login"]
+    except KeyError:
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
             con = getcon()
             cur = con.cursor()
-            cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{current_user_login}'")
-            current_user = cur.fetchone()
+            cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{login}'")
+            user = cur.fetchone()
             try:
-                current_user_fullname = current_user["fullname"]
+                user_fullname = user["fullname"]
             except TypeError:
-                return {"code": 404, "message": "Current user not found"}
+                return {"code": 404, "message": "Queried user not found"}
             else:
                 if current_user_login == login:
-                    result = {"login": current_user_login,
-                              "fullname": current_user_fullname}
-                    user_doctor_login = current_user["doctorLogin"]
+                    result = {"login": login, "fullname": user_fullname}
+                    user_doctor_login = user["doctorLogin"]
                     if user_doctor_login is None:
                         result["isDoctor"] = True
-                        cur.execute(f"SELECT login, fullname FROM users WHERE doctorLogin='{current_user_login}'")
+                        cur.execute(f"SELECT login, fullname FROM users WHERE doctorLogin='{login}'")
                         result["patients"] = list(map(dict, cur.fetchall()))
                     else:
                         result["isDoctor"] = False
                         cur.execute(f"SELECT login, fullname FROM users WHERE login='{user_doctor_login}'")
                         result["doctor"] = dict(cur.fetchone())
-                        result["stepLength"] = current_user["stepLength"]
+                        result["stepLength"] = user["stepLength"]
+                    return {"code": 200, "message": "Success", "result": result}
+                elif current_user_login == user["doctorLogin"]:
+                    cur.execute(f"SELECT fullname FROM users WHERE login='{current_user_login}'")
+                    result = {"login": login,
+                              "fullname": user["fullname"],
+                              "isDoctor": False,
+                              "doctor": {"login": current_user_login, "fullname": cur.fetchone()["fullname"]},
+                              "stepLength": user["stepLength"]}
                     return {"code": 200, "message": "Success", "result": result}
                 else:
-                    cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{login}'")
-                    user = cur.fetchone()
-                    if user is None:
-                        return {"code": 404, "message": "Queried user not found"}
-                    elif current_user_login == user["doctorLogin"]:
-                        result = {"login": login,
-                                  "fullname": user["fullname"],
-                                  "isDoctor": False,
-                                  "doctor": {"login": current_user_login, "fullname": current_user_fullname},
-                                  "stepLength": user["stepLength"]}
-                        return {"code": 200, "message": "Success", "result": result}
-                    else:
-                        return {"code": 403, "message": "Current user has no access to the queried user"}
+                    return {"code": 403, "message": "Current user has no access to the queried user"}
             finally:
                 con.close()
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
-    else:
-        return {"code": 400, "message": "Incorrect request"}
 
 
 @app.route('/medical/getDoctors', methods=['GET', 'OPTIONS'])
@@ -155,15 +150,18 @@ def get_messages():
         if auth_token == AUTH_TOKEN:
             con = getcon()
             cur = con.cursor()
+            cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
+            patient_doctor_login = cur.fetchone()["doctorLogin"]
+            cur.execute(f"SELECT fullname FROM users WHERE login='{patient_doctor_login}'")
+            doctor_fullname = cur.fetchone()["fullname"]
             if current_user_login != patient_login:
-                cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
-                if current_user_login != cur.fetchone()["doctorLogin"]:
+                if current_user_login != patient_doctor_login:
                     con.close()
                     return {"code": 403, "message": "Current user has no access to the queried user"}
             cur.execute(f"SELECT doctorLogin as login, message, timestamp FROM messages WHERE patientLogin='{patient_login}'")
             messages = list(map(dict, cur.fetchall()))
             con.close()
-            return {"code": 200, "message": "Success", "result": messages}
+            return {"code": 200, "message": "Success", "result": {"doctorFullname": doctor_fullname, "messages": messages}}
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
 
@@ -171,13 +169,15 @@ def get_messages():
 @app.route('/medical/sendMessage', methods=['POST', 'OPTIONS'])
 @preflight_request_handler
 def send_message():
-    head = request.headers
-    body = request.json
-    if "CurrentUserLogin" in head and "AuthToken" in head and "PatientLogin" in body and "message" in body:
-        if head["AuthToken"] == AUTH_TOKEN:
-            current_user_login = head["CurrentUserLogin"]
-            patient_login = body["PatientLogin"]
-            message = body["message"]
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+        patient_login = request.json["login"]
+        message = request.json["message"]
+    except KeyError:
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
             con = getcon()
             cur = con.cursor()
             cur.execute(f"SELECT doctorLogin FROM users WHERE login='{current_user_login}'")
@@ -195,8 +195,9 @@ def send_message():
                     else:
                         if patient_doctor_login == current_user_login:
                             timestamp = int(time())
-                            cur.execute("INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
-                                        (current_user_login, patient_login, message, timestamp))
+                            cur.execute(
+                                "INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
+                                (current_user_login, patient_login, message, timestamp))
                             con.commit()
                             return {"code": 200, "message": "Success", "result": {"login": patient_login,
                                                                                   "message": message,
@@ -209,5 +210,4 @@ def send_message():
                 con.close()
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
-    else:
-        return {"code": 400, "message": "Incorrect request"}
+

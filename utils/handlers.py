@@ -7,7 +7,7 @@ def preflight_request_handler(method):
         response.access_control_allow_origin = '*'
         if request.method == 'OPTIONS':
             response.access_control_allow_methods = ['OPTIONS', 'GET', 'POST']
-            response.access_control_allow_headers = ['CurrentUserLogin', 'AuthToken', 'Accept', 'Accept-Encoding', 'Content-Type', 'Origin']
+            response.access_control_allow_headers = ['CurrentUserLogin', 'AuthToken', 'Accept', 'Accept-Encoding', 'Authorization', 'Content-Type', 'Origin']
             response.access_control_max_age = '86400'
         else:
             response.content_type = "application/json"
