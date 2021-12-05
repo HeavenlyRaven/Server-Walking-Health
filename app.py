@@ -171,7 +171,7 @@ def send_message():
     try:
         current_user_login = request.headers["CurrentUserLogin"]
         auth_token = request.headers["AuthToken"]
-        patient_login = request.json["login"]
+        patient_login = request.json["PatientLogin"]
         message = request.json["message"]
     except (KeyError, TypeError):
         return {"code": 400, "message": "Incorrect request"}
@@ -235,8 +235,13 @@ def get_medical_data():
             else:
                 if current_user_login in (patient_login, patient_doctor_login):
                     cur.execute(f"SELECT data FROM data WHERE date='{date}' AND login='{patient_login}'")
-                    return {"code": 200, "message": "Success",
-                            "result": {"patientFullname": patient_fullname, "date": date, "data": json.loads(cur.fetchone()["data"])}}
+                    try:
+                        data = cur.fetchone()["data"]
+                    except TypeError:
+                        return {"code": 204, "message": "No data", "result": {"patientFullname": patient_fullname, "date": date, "data": []}}
+                    else:
+                        return {"code": 200, "message": "Success",
+                                "result": {"patientFullname": patient_fullname, "date": date, "data": json.loads(data)}}
                 else:
                     return {"code": 403, "message": "Current user has no access to the queried user"}
             finally:
@@ -272,7 +277,7 @@ def send_medical_data():
             return {"code": 403, "message": "Wrong AuthToken"}
 
 
-@app.route('/medical/getDates', methods=['POST', 'OPTIONS'])
+@app.route('/medical/getDates', methods=['GET', 'OPTIONS'])
 @preflight_request_handler
 def get_dates():
     try:
