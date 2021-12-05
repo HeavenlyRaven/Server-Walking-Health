@@ -265,7 +265,7 @@ def send_medical_data():
             con = getcon()
             cur = con.cursor()
             try:
-                cur.execute("INSERT INTO data (date, login, data) VALUES (?, ?, ?)", date, current_user_login, json.dumps(data))
+                cur.execute("INSERT INTO data (date, login, data) VALUES (?, ?, ?)", (date, current_user_login, json.dumps(data)))
             except IntegrityError:
                 return {"code": 409, "message": "Attempt to rewrite existing data"}
             else:
