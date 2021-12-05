@@ -270,3 +270,23 @@ def send_medical_data():
                 con.close()
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
+
+
+@app.route('/medical/getDates', methods=['POST', 'OPTIONS'])
+@preflight_request_handler
+def get_dates():
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+    except KeyError:
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
+            con = getcon(with_row_names=False)
+            cur = con.cursor()
+            cur.execute(f"SELECT date FROM data WHERE login='{current_user_login}'")
+            dates = cur.fetchall()
+            con.close()
+            return {"code": 200, "message": "Success", "result": dates}
+        else:
+            return {"code": 403, "message": "Wrong AuthToken"}

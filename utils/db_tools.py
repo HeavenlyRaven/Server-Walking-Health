@@ -4,7 +4,8 @@ database_name = "Server-Walking-Health/database.db"
 IntegrityError = sqlite3.IntegrityError
 
 
-def get_connection():
+def get_connection(with_row_names=True):
     connection = sqlite3.connect(database_name)
-    connection.row_factory = sqlite3.Row
+    if with_row_names:
+        connection.row_factory = sqlite3.Row
     return connection
