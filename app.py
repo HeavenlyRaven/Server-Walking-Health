@@ -36,7 +36,7 @@ def register():
             cur.execute("INSERT INTO users (login, password, fullname, doctorLogin, stepLength) VALUES (?, ?, ?, ?, ?)",
                         (login, password, fullname, doctor_login, step_length))
         except IntegrityError:
-            return {"code": 403, "message": "User already exists",
+            return {"code": 409, "message": "User already exists",
                     "result": {"isDoctor": is_doctor, "AuthToken": None, "stepLength": step_length}}
         else:
             con.commit()
@@ -211,7 +211,7 @@ def send_message():
             return {"code": 403, "message": "Wrong AuthToken"}
 
 
-@app.route('/medical/getData', methods=['POST', 'OPTIONS'])
+@app.route('/medical/getData', methods=['GET', 'OPTIONS'])
 @preflight_request_handler
 def get_medical_data():
     try:
@@ -239,6 +239,33 @@ def get_medical_data():
                             "result": {"patientFullname": patient_fullname, "date": date, "data": json.loads(cur.fetchone()["data"])}}
                 else:
                     return {"code": 403, "message": "Current user has no access to the queried user"}
+            finally:
+                con.close()
+        else:
+            return {"code": 403, "message": "Wrong AuthToken"}
+
+
+@app.route('/medical/sendData', methods=['POST', 'OPTIONS'])
+@preflight_request_handler
+def send_medical_data():
+    try:
+        current_user_login = request.headers["CurrentUserLogin"]
+        auth_token = request.headers["AuthToken"]
+        date = request.json["date"]
+        data = request.json["data"]
+    except (KeyError, TypeError):
+        return {"code": 400, "message": "Incorrect request"}
+    else:
+        if auth_token == AUTH_TOKEN:
+            con = getcon()
+            cur = con.cursor()
+            try:
+                cur.execute("INSERT INTO data (date, login, data) VALUES (?, ?, ?)", date, current_user_login, json.dumps(data))
+            except IntegrityError:
+                return {"code": 409, "message": "Attempt to rewrite existing data"}
+            else:
+                con.commit()
+                return {"code": 200, "message": "Success"}
             finally:
                 con.close()
         else:
