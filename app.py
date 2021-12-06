@@ -281,15 +281,15 @@ def send_medical_data():
 @preflight_request_handler
 def get_dates():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
         auth_token = request.headers["AuthToken"]
+        patient_login = request.args["patient"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
         if auth_token == AUTH_TOKEN:
             con = getcon()
             cur = con.cursor()
-            cur.execute(f"SELECT date FROM data WHERE login='{current_user_login}'")
+            cur.execute(f"SELECT date FROM data WHERE login='{patient_login}'")
             dates = [fetched_data["date"] for fetched_data in cur.fetchall()]
             con.close()
             return {"code": 200, "message": "Success", "result": dates}
