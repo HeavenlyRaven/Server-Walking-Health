@@ -263,16 +263,10 @@ def send_medical_data():
     else:
         if auth_token == AUTH_TOKEN:
             con = getcon()
-            cur = con.cursor()
-            try:
-                cur.execute("INSERT INTO data (date, login, data) VALUES (?, ?, ?)", (date, current_user_login, json.dumps(data)))
-            except IntegrityError:
-                return {"code": 409, "message": "Attempt to rewrite existing data"}
-            else:
-                con.commit()
-                return {"code": 200, "message": "Success"}
-            finally:
-                con.close()
+            con.cursor().execute("REPLACE INTO data (date, login, data) VALUES (?, ?, ?)", (date, current_user_login, json.dumps(data)))
+            con.commit()
+            con.close()
+            return {"code": 200, "message": "Success"}
         else:
             return {"code": 403, "message": "Wrong AuthToken"}
 
