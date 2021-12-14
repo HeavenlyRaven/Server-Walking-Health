@@ -1,4 +1,4 @@
-from flask import Flask, request, json
+from flask import Flask, request
 from time import time
 
 from utils.db_tools import IntegrityError, get_connection as getcon
