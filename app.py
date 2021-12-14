@@ -234,14 +234,14 @@ def get_medical_data():
                 return {"code": 404, "message": "Queried user not found"}
             else:
                 if current_user_login in (patient_login, patient_doctor_login):
-                    cur.execute(f"SELECT data FROM data WHERE date='{date}' AND login='{patient_login}'")
-                    try:
-                        data = cur.fetchone()["data"]
-                    except TypeError:
-                        return {"code": 204, "message": "No data", "result": {"patientFullname": patient_fullname, "date": date, "data": []}}
-                    else:
+                    cur.execute(f"SELECT timestamp, acceleration, distance, speed FROM data WHERE date='{date}' AND login='{patient_login}'")
+                    data = cur.fetchall()
+                    if data:
                         return {"code": 200, "message": "Success",
-                                "result": {"patientFullname": patient_fullname, "date": date, "data": json.loads(data)}}
+                                "result": {"patientFullname": patient_fullname, "date": date, "data": list(map(dict, data))}}
+                    else:
+                        return {"code": 204, "message": "No data",
+                                "result": {"patientFullname": patient_fullname, "date": date, "data": []}}
                 else:
                     return {"code": 403, "message": "Current user has no access to the queried user"}
             finally:
@@ -263,7 +263,10 @@ def send_medical_data():
     else:
         if auth_token == AUTH_TOKEN:
             con = getcon()
-            con.cursor().execute("REPLACE INTO data (date, login, data) VALUES (?, ?, ?)", (date, current_user_login, json.dumps(data)))
+            cur = con.cursor()
+            for m in data:
+                cur.execute("REPLACE INTO data (date, login, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
+                            (date, current_user_login, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
             con.commit()
             con.close()
             return {"code": 200, "message": "Success"}
