@@ -195,8 +195,8 @@ def send_message():
                         if patient_doctor_login == current_user_login:
                             timestamp = int(time())
                             cur.execute(
-                                "INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
-                                (current_user_login, patient_login, message, timestamp))
+                             "INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
+                             (current_user_login, patient_login, message, timestamp))
                             con.commit()
                             return {"code": 200, "message": "Success", "result": {"login": patient_login,
                                                                                   "message": message,

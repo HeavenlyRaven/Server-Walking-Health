@@ -1,6 +1,7 @@
 import sqlite3
+from os import path
 
-database_name = "Server-Walking-Health/database.db"
+database_name = path.join(path.split(path.dirname(__file__))[0], "database.db")
 IntegrityError = sqlite3.IntegrityError
 
 
