@@ -6,10 +6,11 @@ cursor = connection.cursor()
 cursor.executescript("""
 CREATE TABLE users (
 login TEXT PRIMARY KEY, 
-password TEXT NOT NULL, 
+password TEXT, 
 fullname TEXT NOT NULL, 
 doctorLogin TEXT, 
-stepLength REAL, 
+stepLength REAL,
+token TEXT UNIQUE NOT NULL, 
 FOREIGN KEY (doctorLogin) REFERENCES users (login)
 );
 CREATE TABLE messages (
