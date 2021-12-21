@@ -75,7 +75,7 @@ def log_in():
             is_doctor = True if fetched_data["doctorLogin"] is None else False
             if password == actual_password:
                 token = get_auth_token()
-                cur.execute("REPLACE INTO users (token) VALUES (?)", (token,))
+                cur.execute(f"UPDATE users SET token='{token}' WHERE login='{login}'")
                 con.commit()
                 return {"code": 200, "message": "Success",
                         "result": {"isDoctor": is_doctor, "AuthToken": token, "stepLength": fetched_data["stepLength"]}}
@@ -101,9 +101,9 @@ def log_in_google():
         cur.execute(f"SELECT * FROM users WHERE login='{email}'")
         token = get_auth_token()
         if cur.fetchone() is None:
-            cur.execute(f"INSERT INTO users (login, fullname, token) VALUES (?, ?, ?)", (email, fullname, token))
+            cur.execute("INSERT INTO users (login, fullname, token) VALUES (?, ?, ?)", (email, fullname, token))
         else:
-            cur.execute(f"REPLACE INTO users (token) VALUES (?)", (token,))
+            cur.execute(f"UPDATE users SET token='{token}' WHERE login='{email}'")
         con.commit()
         con.close()
         return {"code": 200, "message": "Success", "result": {"isDoctor": True, "AuthToken": token}}
