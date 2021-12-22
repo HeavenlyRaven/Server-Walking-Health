@@ -350,7 +350,7 @@ def get_dates():
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
             cur.execute(f"SELECT date FROM data WHERE login='{patient_login}'")
-            dates = [fetched_data["date"] for fetched_data in cur.fetchall()]
+            dates = list(set(fetched_data["date"] for fetched_data in cur.fetchall()))
             return {"code": 200, "message": "Success", "result": dates}
         finally:
             con.close()
