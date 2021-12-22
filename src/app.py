@@ -25,19 +25,19 @@ def register():
                     "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
         login = data["login"]
         fullname = data["fullname"]
-        doctor_login = data["doctorLogin"]
+        doctor_id = data["doctorId"]
         step_length = data["stepLength"]
     except (TypeError, KeyError):
         return {"code": 400, "message": "Incorrect request",
                 "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
     else:
-        is_doctor = True if doctor_login is None else False
+        is_doctor = True if doctor_id is None else False
         con = getcon()
         cur = con.cursor()
         try:
             token = get_auth_token()
-            cur.execute("INSERT INTO users (login, password, fullname, doctorLogin, stepLength, token) VALUES (?, ?, ?, ?, ?, ?)",
-                        (login, password, fullname, doctor_login, step_length, token))
+            cur.execute("INSERT INTO users (login, password, fullname, doctorId, stepLength, token) VALUES (?, ?, ?, ?, ?, ?)",
+                        (login, password, fullname, doctor_id, step_length, token))
         except IntegrityError:
             return {"code": 409, "message": "User already exists",
                     "result": {"isDoctor": is_doctor, "AuthToken": None, "stepLength": step_length}}
@@ -64,7 +64,7 @@ def log_in():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT password, doctorLogin, stepLength FROM users WHERE login='{login}'")
+        cur.execute("SELECT password, doctorId, stepLength FROM users WHERE login=?", (login,))
         fetched_data = cur.fetchone()
         try:
             actual_password = fetched_data["password"]
@@ -72,10 +72,10 @@ def log_in():
             return {"code": 404, "message": "There is no user with such login",
                     "result": {"isDoctor": None, "AuthToken": None, "stepLength": None}}
         else:
-            is_doctor = True if fetched_data["doctorLogin"] is None else False
+            is_doctor = True if fetched_data["doctorId"] is None else False
             if password == actual_password:
                 token = get_auth_token()
-                cur.execute(f"UPDATE users SET token='{token}' WHERE login='{login}'")
+                cur.execute("UPDATE users SET token=? WHERE login=?", (token, login))
                 con.commit()
                 return {"code": 200, "message": "Success",
                         "result": {"isDoctor": is_doctor, "AuthToken": token, "stepLength": fetched_data["stepLength"]}}
@@ -98,12 +98,12 @@ def log_in_google():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT * FROM users WHERE login='{email}'")
+        cur.execute("SELECT * FROM users WHERE login=?", (email,))
         token = get_auth_token()
         if cur.fetchone() is None:
             cur.execute("INSERT INTO users (login, fullname, token) VALUES (?, ?, ?)", (email, fullname, token))
         else:
-            cur.execute(f"UPDATE users SET token='{token}' WHERE login='{email}'")
+            cur.execute(f"UPDATE users SET token=? WHERE login=?", (token, email))
         con.commit()
         con.close()
         return {"code": 200, "message": "Success", "result": {"isDoctor": True, "AuthToken": token}}
@@ -113,15 +113,15 @@ def log_in_google():
 @preflight_request_handler
 def get_user_data():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
+        current_user_id = request.headers["CurrentUserId"]
         auth_token = request.headers["AuthToken"]
-        login = request.args["login"]
+        id = request.args["id"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT token FROM users WHERE login='{current_user_login}'")
+        cur.execute("SELECT token FROM users WHERE id=?", (current_user_id,))
         try:
             token = cur.fetchone()["token"]
         except TypeError:
@@ -129,23 +129,23 @@ def get_user_data():
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            cur.execute(f"SELECT fullname, doctorLogin, stepLength FROM users WHERE login='{login}'")
+            cur.execute("SELECT fullname, doctorId, stepLength FROM users WHERE id=?", (id,))
             user = cur.fetchone()
             try:
                 user_fullname = user["fullname"]
-                user_doctor_login = user["doctorLogin"]
+                user_doctor_id = user["doctorId"]
             except TypeError:
                 return {"code": 404, "message": "Queried user not found"}
             else:
-                if current_user_login in (login, user_doctor_login):
-                    result = {"login": login, "fullname": user_fullname}
-                    if user_doctor_login is None:
+                if current_user_id in (id, user_doctor_id):
+                    result = {"id": id, "fullname": user_fullname}
+                    if user_doctor_id is None:
                         result["isDoctor"] = True
-                        cur.execute(f"SELECT login, fullname FROM users WHERE doctorLogin='{login}'")
+                        cur.execute("SELECT id, fullname FROM users WHERE doctorId=?", (id,))
                         result["patients"] = list(map(dict, cur.fetchall()))
                     else:
                         result["isDoctor"] = False
-                        cur.execute(f"SELECT login, fullname FROM users WHERE login='{user_doctor_login}'")
+                        cur.execute("SELECT id, fullname FROM users WHERE id=?", (user_doctor_id,))
                         result["doctor"] = dict(cur.fetchone())
                         result["stepLength"] = user["stepLength"]
                     return {"code": 200, "message": "Success", "result": result}
@@ -160,7 +160,7 @@ def get_user_data():
 def get_doctors():
     con = getcon()
     cur = con.cursor()
-    cur.execute("SELECT login, fullname FROM users WHERE doctorLogin IS NULL")
+    cur.execute("SELECT id, fullname FROM users WHERE doctorId IS NULL")
     doctors = list(map(dict, cur.fetchall()))
     con.close()
     return {"code": 200, "message": "OK", "result": doctors}
@@ -170,15 +170,15 @@ def get_doctors():
 @preflight_request_handler
 def get_messages():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
+        current_user_id = request.headers["CurrentUserId"]
         auth_token = request.headers["AuthToken"]
-        patient_login = request.args["PatientLogin"]
+        patient_id = request.args["PatientId"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT fullname, token FROM users WHERE login='{current_user_login}'")
+        cur.execute("SELECT fullname, token FROM users WHERE id=?", (current_user_id,))
         current_user = cur.fetchone()
         try:
             current_user_fullname = current_user["fullname"]
@@ -188,19 +188,19 @@ def get_messages():
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
+            cur.execute("SELECT doctorId FROM users WHERE id=?", (patient_id,))
             try:
-                patient_doctor_login = cur.fetchone()["doctorLogin"]
+                patient_doctor_id = cur.fetchone()["doctorId"]
             except TypeError:
                 return {"code": 404, "message": "Queried user not found"}
             else:
-                if patient_doctor_login is None:
+                if patient_doctor_id is None:
                     return {"code": 403, "message": "Queried user is not a patient"}
                 else:
-                    if current_user_login != patient_login:
-                        if current_user_login != patient_doctor_login:
+                    if current_user_id != patient_id:
+                        if current_user_id != patient_doctor_id:
                             return {"code": 403, "message": "Current user has no access to the queried user"}
-                    cur.execute(f"SELECT doctorLogin as login, message, timestamp FROM messages WHERE patientLogin='{patient_login}'")
+                    cur.execute("SELECT doctorId as id, message, timestamp FROM messages WHERE patientId=?", (patient_id,))
                     messages = list(map(dict, cur.fetchall()))
                     return {"code": 200, "message": "Success",
                             "result": {"doctorFullname": current_user_fullname, "messages": messages}}
@@ -212,39 +212,39 @@ def get_messages():
 @preflight_request_handler
 def send_message():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
+        current_user_id = request.headers["CurrentUserId"]
         auth_token = request.headers["AuthToken"]
-        patient_login = request.json["PatientLogin"]
+        patient_id = request.json["PatientId"]
         message = request.json["message"]
     except (KeyError, TypeError):
         return {"code": 400, "message": "Incorrect request"}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT doctorLogin, token FROM users WHERE login='{current_user_login}'")
+        cur.execute("SELECT doctorId, token FROM users WHERE id=?", (current_user_id,))
         current_user = cur.fetchone()
         try:
             token = current_user["token"]
-            current_user_doctor_login = current_user["doctorLogin"]
+            current_user_doctor_id = current_user["doctorId"]
         except TypeError:
             return {"code": 404, "message": "Current user not found"}
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            if current_user_doctor_login is None:
-                cur.execute(f"SELECT doctorLogin FROM users WHERE login='{patient_login}'")
+            if current_user_doctor_id is None:
+                cur.execute("SELECT doctorLogin FROM users WHERE id=?", (patient_id,))
                 try:
-                    patient_doctor_login = cur.fetchone()["doctorLogin"]
+                    patient_doctor_id = cur.fetchone()["doctorId"]
                 except TypeError:
                     return {"code": 404, "message": "Queried user not found"}
                 else:
-                    if patient_doctor_login == current_user_login:
+                    if patient_doctor_id == current_user_id:
                         timestamp = int(time())
                         cur.execute(
-                            "INSERT INTO messages (doctorLogin, patientLogin, message, timestamp) VALUES (?, ?, ?, ?)",
-                            (current_user_login, patient_login, message, timestamp))
+                            "INSERT INTO messages (doctorId, patientId, message, timestamp) VALUES (?, ?, ?, ?)",
+                            (current_user_id, patient_id, message, timestamp))
                         con.commit()
-                        return {"code": 200, "message": "Success", "result": {"login": patient_login,
+                        return {"code": 200, "message": "Success", "result": {"id": patient_id,
                                                                               "message": message,
                                                                               "timestamp": timestamp}}
                     else:
@@ -259,16 +259,16 @@ def send_message():
 @preflight_request_handler
 def get_medical_data():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
+        current_user_id = request.headers["CurrentUserId"]
         auth_token = request.headers["AuthToken"]
-        patient_login = request.args["PatientLogin"]
+        patient_id = request.args["PatientId"]
         date = request.args["date"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT token FROM users WHERE login='{current_user_login}'")
+        cur.execute("SELECT token FROM users WHERE id=?", (current_user_id,))
         try:
             token = cur.fetchone()["token"]
         except TypeError:
@@ -276,16 +276,17 @@ def get_medical_data():
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            cur.execute(f"SELECT fullname, doctorLogin FROM users WHERE login='{patient_login}'")
+            cur.execute(f"SELECT fullname, doctorId FROM users WHERE id=?", (patient_id,))
             patient = cur.fetchone()
             try:
                 patient_fullname = patient["fullname"]
-                patient_doctor_login = patient["doctorLogin"]
+                patient_doctor_id = patient["doctorId"]
             except TypeError:
                 return {"code": 404, "message": "Queried user not found"}
             else:
-                if current_user_login in (patient_login, patient_doctor_login):
-                    cur.execute(f"SELECT timestamp, acceleration, distance, speed FROM data WHERE date='{date}' AND login='{patient_login}'")
+                if current_user_id in (patient_id, patient_doctor_id):
+                    cur.execute("SELECT timestamp, acceleration, distance, speed FROM data WHERE date=? AND id=?",
+                                (date, patient_id))
                     data = cur.fetchall()
                     if data:
                         return {"code": 200, "message": "Success",
@@ -304,7 +305,7 @@ def get_medical_data():
 @preflight_request_handler
 def send_medical_data():
     try:
-        current_user_login = request.headers["CurrentUserLogin"]
+        current_user_id = request.headers["CurrentUserId"]
         auth_token = request.headers["AuthToken"]
         date = request.json["date"]
         data = request.json["data"]
@@ -313,7 +314,7 @@ def send_medical_data():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT token FROM users WHERE login='{current_user_login}'")
+        cur.execute("SELECT token FROM users WHERE id=?", (current_user_id,))
         try:
             token = cur.fetchone()["token"]
         except TypeError:
@@ -323,8 +324,8 @@ def send_medical_data():
                 return {"code": 403, "message": "Wrong AuthToken"}
             for m in data:
                 cur.execute(
-                    "REPLACE INTO data (date, login, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
-                    (date, current_user_login, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
+                    "REPLACE INTO data (date, id, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
+                    (date, current_user_id, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
             con.commit()
             con.close()
             return {"code": 200, "message": "Success"}
@@ -335,13 +336,13 @@ def send_medical_data():
 def get_dates():
     try:
         auth_token = request.headers["AuthToken"]
-        patient_login = request.args["patient"]
+        patient_id = request.args["PatientId"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute(f"SELECT token FROM users WHERE login='{patient_login}'")
+        cur.execute("SELECT token FROM users WHERE id=?", (patient_id,))
         try:
             token = cur.fetchone()["token"]
         except TypeError:
@@ -349,7 +350,7 @@ def get_dates():
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            cur.execute(f"SELECT date FROM data WHERE login='{patient_login}'")
+            cur.execute("SELECT date FROM data WHERE id=?", (patient_id,))
             dates = list(set(fetched_data["date"] for fetched_data in cur.fetchall()))
             return {"code": 200, "message": "Success", "result": dates}
         finally:

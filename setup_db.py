@@ -5,30 +5,31 @@ cursor = connection.cursor()
 
 cursor.executescript("""
 CREATE TABLE users (
-login TEXT PRIMARY KEY, 
+id INTEGER PRIMARY KEY,
+login TEXT UNIQUE NOT NULL, 
 password TEXT, 
 fullname TEXT NOT NULL, 
-doctorLogin TEXT, 
+doctorId INTEGER, 
 stepLength REAL,
 token TEXT UNIQUE NOT NULL, 
-FOREIGN KEY (doctorLogin) REFERENCES users (login)
+FOREIGN KEY (doctorId) REFERENCES users (id)
 );
 CREATE TABLE messages (
-doctorLogin TEXT NOT NULL, 
-patientLogin TEXT NOT NULL, 
+doctorId INTEGER NOT NULL, 
+patientId INTEGER NOT NULL, 
 message TEXT NOT NULL, 
 timestamp INTEGER NOT NULL, 
-FOREIGN KEY (doctorLogin, patientLogin) REFERENCES users (doctorLogin, login)
+FOREIGN KEY (doctorId, patientId) REFERENCES users (doctorId, id)
 );
 CREATE TABLE data (
 date TEXT NOT NULL, 
-login TEXT NOT NULL,
+id TEXT NOT NULL,
 timestamp INTEGER NOT NULL, 
 acceleration REAL NOT NULL, 
 distance REAL NOT NULL, 
 speed REAL NOT NULL, 
-PRIMARY KEY (date, login, timestamp), 
-FOREIGN KEY (login) REFERENCES users (login)
+PRIMARY KEY (date, id, timestamp), 
+FOREIGN KEY (id) REFERENCES users (id)
 )""")
 
 connection.commit()
