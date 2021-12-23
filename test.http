@@ -1,0 +1,98 @@
+POST http://localhost:5000/user/register
+Content-Type: application/json
+
+{
+  "login": "test_doctor",
+  "password": "12345678",
+  "fullname": "Doctor Doctorov",
+  "doctorId": null,
+  "stepLength": null
+}
+###
+POST http://localhost:5000/user/register
+Content-Type: application/json
+
+{
+  "login": "test_patient1",
+  "password": "87654321",
+  "fullname": "Patient Patientsky",
+  "doctorId": 1,
+  "stepLength": 0.5
+}
+###
+POST http://localhost:5000/user/register
+Content-Type: application/json
+
+{
+  "login": "test_patient2",
+  "password": "pass1234",
+  "fullname": "Patientka Patientskaya",
+  "doctorId": 1,
+  "stepLength": 0.34
+}
+###
+POST http://localhost:5000/user/login
+Content-Type: application/json
+
+{
+  "login": "test_doctor",
+  "password": "12345678"
+}
+###
+POST http://localhost:5000/user/login/google
+Content-Type: application/json
+
+{
+  "email": "mr_doctor@clinic.com",
+  "fullname": "Google Doctor"
+}
+###
+GET http://localhost:5000/user/getData?id=2
+CurrentUserId: 1
+AuthToken: 8zFUnOcOkKXLu5-KqBip8xX-PeY7nE1Wa6hIaz4tb4o
+###
+GET http://localhost:5000/medical/getDoctors
+###
+POST http://localhost:5000/medical/sendMessage
+Content-Type: application/json
+CurrentUserId: 1
+AuthToken: 8zFUnOcOkKXLu5-KqBip8xX-PeY7nE1Wa6hIaz4tb4o
+
+{
+  "PatientId": 2,
+  "message": "Test message text"
+}
+###
+GET http://localhost:5000/medical/getMessages?PatientId=2
+CurrentUserId: 1
+AuthToken: 8zFUnOcOkKXLu5-KqBip8xX-PeY7nE1Wa6hIaz4tb4o
+###
+POST http://localhost:5000/medical/sendData
+Content-Type: application/json
+CurrentUserId: 2
+AuthToken: fv888XMLDMc5iqibqGFu3yQi2ct29rLK_yDGIp5D1ZU
+
+{
+  "date": "23.12.2021",
+  "data": [
+    {
+      "timestamp": 1640293482,
+      "acceleration": 1.23,
+      "distance": 103.5,
+      "speed": 16.802
+      },
+      {
+      "timestamp": 1640293782,
+      "acceleration": 1.22,
+      "distance": 101.99,
+      "speed": 11.6
+      }
+  ]
+}
+###
+GET http://localhost:5000/medical/getData?PatientId=2&date=23.12.2021
+CurrentUserId: 1
+AuthToken: 8zFUnOcOkKXLu5-KqBip8xX-PeY7nE1Wa6hIaz4tb4o
+###
+GET http://localhost:5000/medical/getDates?PatientId=2
+AuthToken: fv888XMLDMc5iqibqGFu3yQi2ct29rLK_yDGIp5D1ZU

@@ -1,0 +1,83 @@
+<ISSPECS>
+	<DESCRIPTION>
+		<TITLE>Web REST API</TITLE>
+		<SUBJ>Web, REST, HTTP, Development, Medical</SUBJ>
+	</DESCRIPTION>
+	<DATA>
+		<ENTITY ent_id="users">
+			<PROPERTY>id</PROPERTY>
+			<PROPERTY>login</PROPERTY>
+            <PROPERTY>password</PROPERTY>
+            <PROPERTY>fullname</PROPERTY>
+            <PROPERTY>doctorId</PROPERTY>
+            <PROPERTY>stepLength</PROPERTY>
+            <PROPERTY>token</PROPERTY>
+		</ENTITY>
+		<ENTITY ent_id="messages">
+			<PROPERTY>doctorId</PROPERTY>
+			<PROPERTY>patientId</PROPERTY>
+			<PROPERTY>message</PROPERTY>
+			<PROPERTY>timestamp</PROPERTY>
+		</ENTITY>
+        <ENTITY ent_id="data">
+			<PROPERTY>date</PROPERTY>
+			<PROPERTY>id</PROPERTY>
+			<PROPERTY>timestamp</PROPERTY>
+            <PROPERTY>acceleration</PROPERTY>
+            <PROPERTY>distance</PROPERTY>
+            <PROPERTY>speed</PROPERTY>
+		</ENTITY>
+        <RELATIONSHIP ent_ids = "users users">
+			<PROPERTY>ONE TO MANY</PROPERTY>
+		</RELATIONSHIP>
+		<RELATIONSHIP ent_ids = "users data">
+			<PROPERTY>ONE TO MANY</PROPERTY>
+		</RELATIONSHIP>
+        <RELATIONSHIP ent_ids = "users messages">
+			<PROPERTY>ONE TO MANY</PROPERTY>
+		</RELATIONSHIP>
+		<CONSTRAINT>Таблица users задаёт рекурсивное отношение один ко многим (один доктор имеет множество пациентов)</CONSTRAINT>
+		<CONSTRAINT>Между таблицами users и data построение отношение один ко многим (один пациент имеет множество записей активности)</CONSTRAINT>
+		<CONSTRAINT>Между таблицами users и data построено отношение один ко многим (один пользовтаель имеет множество сообщений)</CONSTRAINT>
+        <CONSTRAINT>Логин должен быть уникальным для каждого пользователя и не может быть NULL</CONSTRAINT>
+        <CONSTRAINT>ФИО пользователя не может быть NULL</CONSTRAINT>
+        <CONSTRAINT>Токен аутентификации не может быть NULL</CONSTRAINT>
+        <CONSTRAINT>В таблице сообщений не может быть nullable полей</CONSTRAINT>
+        <CONSTRAINT>В таблице данных не может быть nullable полей</CONSTRAINT>
+        <CONSTRAINT>Таблица данных имеет составной первичный ключ, так как активность пациента ведётся по дням и моментам времени дня</CONSTRAINT>
+	</DATA>
+	<ROLES>
+		<ROLE>
+			<TITLE>Patient</TITLE>
+			<RESPOSIBILITY>Регистрация с указанием длины шага</RESPOSIBILITY>
+			<RESPOSIBILITY>Выбор одного доктора при регистрации</RESPOSIBILITY>
+			<RESPOSIBILITY>Возможность входа в систему с помощью логина и пароля</RESPOSIBILITY>
+			<RESPOSIBILITY>Возможность просматривать свои данные пользователя и медицинские данные</RESPOSIBILITY>
+            <RESPOSIBILITY>Возможность отправлять свои медицинские данные на сервер</RESPOSIBILITY>
+            <RESPOSIBILITY>Возможность просматривать сообщения своего врача</RESPOSIBILITY>
+			<TOTALUSERS>NOT LIMITED</TOTALUSERS>
+		</ROLE>
+        <ROLE>
+			<TITLE>Doctor</TITLE>
+			<RESPOSIBILITY>Регистрация</RESPOSIBILITY>
+			<RESPOSIBILITY>Возможность входа в систему с помощью логина и пароля</RESPOSIBILITY>
+			<RESPOSIBILITY>Возможность просматривать свои данные пользователя, данные пользователя своих пациентов и медицинские данные своих пациентов</RESPOSIBILITY>
+            <RESPOSIBILITY>Возможность писать сообщения своим пациентам</RESPOSIBILITY>
+			<TOTALUSERS>NOT LIMITED</TOTALUSERS>
+		</ROLE>
+	</ROLES>
+	<TECHSPEC>
+		<TYPE>API</TYPE>
+		<DEVTOOLS>
+			<DEV>Programming language: Python</DEV>
+			<DEV>Database interface library: sqlite3</DEV>
+			<DEV>Web-framework: Flask</DEV>
+			<DEV>Library for token generation: secrets</DEV>
+		</DEVTOOLS>
+		<DBMS>
+			<TITLE>SQLite</TITLE>
+			<VERSION>3.35.5</VERSION>
+			<REASONING>SQLite - компактная СУБД, отлично подходящая для развёртывания небольших тестовых систем, имеющая встроенную поддержку в языке Python</REASONING>
+		</DBMS>
+	</TECHSPEC>
+</ISSPECS>

@@ -38,8 +38,8 @@ def register():
             token = get_auth_token()
             cur.execute("INSERT INTO users (login, password, fullname, doctorId, stepLength, token) VALUES (?, ?, ?, ?, ?, ?)",
                         (login, password, fullname, doctor_id, step_length, token))
-        except IntegrityError:
-            return {"code": 409, "message": "User already exists",
+        except IntegrityError as error:
+            return {"code": 409, "message": str(error),
                     "result": {"isDoctor": is_doctor, "AuthToken": None, "stepLength": step_length}}
         else:
             con.commit()
@@ -106,16 +106,16 @@ def log_in_google():
             cur.execute(f"UPDATE users SET token=? WHERE login=?", (token, email))
         con.commit()
         con.close()
-        return {"code": 200, "message": "Success", "result": {"isDoctor": True, "AuthToken": token}}
+        return {"code": 200, "message": "Success", "AuthToken": token}
 
 
 @app.route('/user/getData', methods=['GET', 'OPTIONS'])
 @preflight_request_handler
 def get_user_data():
     try:
-        current_user_id = request.headers["CurrentUserId"]
+        current_user_id = int(request.headers["CurrentUserId"])
         auth_token = request.headers["AuthToken"]
-        id = request.args["id"]
+        id = int(request.args["id"])
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
@@ -170,9 +170,9 @@ def get_doctors():
 @preflight_request_handler
 def get_messages():
     try:
-        current_user_id = request.headers["CurrentUserId"]
+        current_user_id = int(request.headers["CurrentUserId"])
         auth_token = request.headers["AuthToken"]
-        patient_id = request.args["PatientId"]
+        patient_id = int(request.args["PatientId"])
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
@@ -212,9 +212,9 @@ def get_messages():
 @preflight_request_handler
 def send_message():
     try:
-        current_user_id = request.headers["CurrentUserId"]
+        current_user_id = int(request.headers["CurrentUserId"])
         auth_token = request.headers["AuthToken"]
-        patient_id = request.json["PatientId"]
+        patient_id = int(request.json["PatientId"])
         message = request.json["message"]
     except (KeyError, TypeError):
         return {"code": 400, "message": "Incorrect request"}
@@ -259,9 +259,9 @@ def send_message():
 @preflight_request_handler
 def get_medical_data():
     try:
-        current_user_id = request.headers["CurrentUserId"]
+        current_user_id = int(request.headers["CurrentUserId"])
         auth_token = request.headers["AuthToken"]
-        patient_id = request.args["PatientId"]
+        patient_id = int(request.args["PatientId"])
         date = request.args["date"]
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
@@ -305,7 +305,7 @@ def get_medical_data():
 @preflight_request_handler
 def send_medical_data():
     try:
-        current_user_id = request.headers["CurrentUserId"]
+        current_user_id = int(request.headers["CurrentUserId"])
         auth_token = request.headers["AuthToken"]
         date = request.json["date"]
         data = request.json["data"]
@@ -322,12 +322,16 @@ def send_medical_data():
         else:
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
-            for m in data:
-                cur.execute(
-                    "REPLACE INTO data (date, id, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
-                    (date, current_user_id, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
-            con.commit()
-            return {"code": 200, "message": "Success"}
+            try:
+                for m in data:
+                    cur.execute(
+                        "INSERT INTO data (date, id, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
+                        (date, current_user_id, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
+            except IntegrityError as error:
+                return {"code": 409, "message": str(error)}
+            else:
+                con.commit()
+                return {"code": 200, "message": "Success"}
         finally:
             con.close()
 
@@ -337,7 +341,7 @@ def send_medical_data():
 def get_dates():
     try:
         auth_token = request.headers["AuthToken"]
-        patient_id = request.args["PatientId"]
+        patient_id = int(request.args["PatientId"])
     except KeyError:
         return {"code": 400, "message": "Incorrect request"}
     else:
@@ -347,7 +351,7 @@ def get_dates():
         patient = cur.fetchone()
         try:
             token = patient["token"]
-            patient_doctor_id = patient["doctor_id"]
+            patient_doctor_id = patient["doctorId"]
         except TypeError:
             return {"code": 404, "message": "Current user not found"}
         else:

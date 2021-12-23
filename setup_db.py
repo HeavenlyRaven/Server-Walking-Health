@@ -19,7 +19,8 @@ doctorId INTEGER NOT NULL,
 patientId INTEGER NOT NULL, 
 message TEXT NOT NULL, 
 timestamp INTEGER NOT NULL, 
-FOREIGN KEY (doctorId, patientId) REFERENCES users (doctorId, id)
+FOREIGN KEY (doctorId) REFERENCES users (id),
+FOREIGN KEY (patientId) REFERENCES users (id)
 );
 CREATE TABLE data (
 date TEXT NOT NULL, 
