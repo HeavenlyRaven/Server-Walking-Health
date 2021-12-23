@@ -232,7 +232,7 @@ def send_message():
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
             if current_user_doctor_id is None:
-                cur.execute("SELECT doctorLogin FROM users WHERE id=?", (patient_id,))
+                cur.execute("SELECT doctorId FROM users WHERE id=?", (patient_id,))
                 try:
                     patient_doctor_id = cur.fetchone()["doctorId"]
                 except TypeError:
@@ -327,8 +327,9 @@ def send_medical_data():
                     "REPLACE INTO data (date, id, timestamp, acceleration, distance, speed) VALUES (?, ?, ?, ?, ?, ?)",
                     (date, current_user_id, m["timestamp"], m["acceleration"], m["distance"], m["speed"]))
             con.commit()
-            con.close()
             return {"code": 200, "message": "Success"}
+        finally:
+            con.close()
 
 
 @app.route('/medical/getDates', methods=['GET', 'OPTIONS'])
@@ -342,12 +343,16 @@ def get_dates():
     else:
         con = getcon()
         cur = con.cursor()
-        cur.execute("SELECT token FROM users WHERE id=?", (patient_id,))
+        cur.execute("SELECT token, doctorId FROM users WHERE id=?", (patient_id,))
+        patient = cur.fetchone()
         try:
-            token = cur.fetchone()["token"]
+            token = patient["token"]
+            patient_doctor_id = patient["doctor_id"]
         except TypeError:
             return {"code": 404, "message": "Current user not found"}
         else:
+            if patient_doctor_id is None:
+                return {"code": 400, "message": "Current user is not a patient"}
             if auth_token != token:
                 return {"code": 403, "message": "Wrong AuthToken"}
             cur.execute("SELECT date FROM data WHERE id=?", (patient_id,))

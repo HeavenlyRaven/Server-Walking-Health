@@ -8,4 +8,5 @@ IntegrityError = sqlite3.IntegrityError
 def get_connection():
     connection = sqlite3.connect(database_name)
     connection.row_factory = sqlite3.Row
+    connection.cursor().execute("PRAGMA foreign_keys=ON")
     return connection
