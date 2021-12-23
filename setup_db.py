@@ -11,7 +11,7 @@ password TEXT,
 fullname TEXT NOT NULL, 
 doctorId INTEGER, 
 stepLength REAL,
-token TEXT UNIQUE NOT NULL, 
+token TEXT NOT NULL, 
 FOREIGN KEY (doctorId) REFERENCES users (id)
 );
 CREATE TABLE messages (
