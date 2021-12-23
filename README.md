@@ -8,7 +8,7 @@ Application backend
 3. ER диаграмма модели предметной области:
 
 ![Diagram](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/Diagram.png)
-4. Скрипты для развёртывания системы: можно запустить [app.py](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/src/app.py) в режиме Development сервера, либо сбилдить с помощью [Докерфайла](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/Dockerfile) и запустить в контейнере (инструкция приведена ниже)\
+4. Скрипты для развёртывания системы: можно запустить [app.py](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/src/app.py) в режиме Development сервера, предварительно запустив [setup_db.py](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/setup_db.py) для создания базы данных, либо сбилдить с помощью [Докерфайла](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/Dockerfile) и запустить в контейнере (инструкция приведена ниже)\
 5. Тестовые данные: [тестовые HTTP запросы](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/test.http)\
 6. [Документация к API](https://github.com/HeavenlyRaven/Server-Walking-Health/blob/ID_version/API_documentation.md)\
 7. Транзакций (помимо автоматически созданных самой СУБД) нет
